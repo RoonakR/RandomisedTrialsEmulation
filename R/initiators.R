@@ -82,7 +82,8 @@ initiators <- function(data_path, id="id", period="period",
                        where_var=NA, where_case=NA, run_base_model=1,
                        case_control=0, n_control=5,
                        data_dir="~/rds/hpc-work/",
-                       numCores=NA){
+                       numCores=NA,
+                       skip_datastep_2 = FALSE){
 
   if(is.na(model_var)){
     if(use_censor == 0){
@@ -249,7 +250,7 @@ initiators <- function(data_path, id="id", period="period",
         })
         data_extension_parallel(data, keeplist, outcomeCov_var,
                                 first_period, last_period, use_censor, lag_p_nosw,
-                                where_var, data_dir, numCores)
+                                where_var, data_dir, numCores, skip_datastep_2 = skip_datastep_2)
       }
     )
   }else{
@@ -262,7 +263,8 @@ initiators <- function(data_path, id="id", period="period",
                                          first_period, last_period,
                                          use_censor, lag_p_nosw,
                                          where_var, data_dir,
-                                         numCores)
+                                         numCores,
+                                         skip_datastep_2 = skip_datastep_2)
   }
 
 

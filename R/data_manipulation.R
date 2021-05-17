@@ -156,7 +156,8 @@ data_extension_parallel <- function(data_address, keeplist, outcomeCov_var=NA,
                            use_censor=0,
                            lag_p_nosw=1, where_var=NA,
                            data_dir="~/rds/hpc-work/",
-                           numCores=NA){
+                           numCores=NA,
+                           skip_datastep_2 = FALSE){
   max_id = max(data_address[, "id"])
   maxperiod = max(data_address[, "period"])
   minperiod = min(data_address[, "period"])
@@ -171,11 +172,13 @@ data_extension_parallel <- function(data_address, keeplist, outcomeCov_var=NA,
 
   j = seq(1, max_id, 1)
 
-  mclapply(j, expand_switch, data_address=data_address,
-           outcomeCov_var=outcomeCov_var, where_var=where_var,
-           use_censor=use_censor, maxperiod=maxperiod, minperiod=minperiod,
-           lag_p_nosw=lag_p_nosw, keeplist=keeplist, data_dir=data_dir,
-           mc.cores=numCores)
+  if(!skip_datastep_2){
+    mclapply(j, expand_switch, data_address=data_address,
+             outcomeCov_var=outcomeCov_var, where_var=where_var,
+             use_censor=use_censor, maxperiod=maxperiod, minperiod=minperiod,
+             lag_p_nosw=lag_p_nosw, keeplist=keeplist, data_dir=data_dir,
+             mc.cores=numCores)
+  }
 
   gc()
 
