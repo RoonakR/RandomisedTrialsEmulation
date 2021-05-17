@@ -233,7 +233,9 @@ initiators <- function(data_path, id="id", period="period",
   df <- data.frame(matrix(ncol = length(keeplist), nrow = 0))
   colnames(df) <- keeplist
 
-  write.csv(df, paste0(data_dir, "switch_data.csv"), row.names=FALSE)
+  if(!skip_datastep_2) {
+    write.csv(df, paste0(data_dir, "switch_data.csv"), row.names=FALSE)
+  }
 
   if(numCores == 1){
     manipulate = tryCatch(
