@@ -187,7 +187,7 @@ initiators <- function(data_path, id="id", period="period",
   absolutePath <- normalizePath(data_path)
 
   data = tryCatch({
-    suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="double"))
+    suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="integer"))
   })
 
   keeplist <- c("id", "for_period", "followup_time", "assigned_treatment",
@@ -248,7 +248,7 @@ initiators <- function(data_path, id="id", period="period",
         write.csv(df, paste0(data_dir, "switch_data.csv"), row.names=FALSE)
         print("The memory is not enough to do the data extention without data division so performed in parallel programming fashion!")
         data = tryCatch({
-          suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="double"))
+          suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="integer"))
         })
         data_extension_parallel(data, keeplist, outcomeCov_var,
                                 first_period, last_period, use_censor, lag_p_nosw,
@@ -257,7 +257,7 @@ initiators <- function(data_path, id="id", period="period",
     )
   }else{
     data = tryCatch({
-      suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="double"))
+      suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="integer"))
     })
 
     manipulate = data_extension_parallel(data, keeplist,
@@ -289,10 +289,12 @@ initiators <- function(data_path, id="id", period="period",
   rm(data, absolutePath)
   gc()
 
+  print("Starting to read in switch_data...")
   absolutePath <- normalizePath(paste0(data_dir, "switch_data.csv"))
   data_address = tryCatch({
-    suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, shared=FALSE, type="double"))
+    suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="integer"))
   })
+  print("Finished reading switch_data...")
 
   write.csv(df, paste0(data_dir, "temp_data.csv"), row.names=FALSE)
   # print("----------------------------------------------")
@@ -304,6 +306,7 @@ initiators <- function(data_path, id="id", period="period",
   # print("standard deviation:")
   # print(sd(switch_data[, weight]))
 
+  print("Starting case_control section")
   if(case_control == 1){
     j = seq(min_period, max_period, 1)
     beg = Sys.time()
@@ -361,7 +364,7 @@ initiators <- function(data_path, id="id", period="period",
   gc()
 
   data = tryCatch({
-    suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header=TRUE, shared=FALSE, type="double"))
+    suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header=TRUE,  type="integer"))
   })
 
   temp_data = data[bigmemory::mwhich(data, c("followup_time", "followup_time"), c(first_followup, last_followup), c('ge', 'le'), 'AND'), ]
