@@ -58,7 +58,7 @@
 #' @import parallel
 #' @import data.table
 #' @importFrom Rcpp sourceCpp
-#' @useDynLib RandomisedTrialsEmulation
+#' @useDynLib RandomisedTrialsEmulationTiming
 
 initiators <- function(data_path, id="id", period="period",
                        treatment="treatment", outcome="outcome",
@@ -205,8 +205,9 @@ initiators <- function(data_path, id="id", period="period",
   }
   keeplist <- c(keeplist, model_var)
 
-  beg = Sys.time()
 
+  print("Beginning first data manipulation")
+  print(system.time({
   data_manipulation(data, data_path, keeplist,
                     treatment, id, period, outcome, eligible,
                     outcomeCov_var,
@@ -220,11 +221,12 @@ initiators <- function(data_path, id="id", period="period",
                     include_regime_length, eligible_wts_0,
                     eligible_wts_1, lag_p_nosw, where_var, data_dir,
                     numCores)
+  print("Finished first data manipulation")
+  }))
 
-  end = Sys.time()
-  print("processing time of data manipulation (Sys.time):")
-  print(end - beg)
-  print("------------end of first data manipulation!----------------")
+  print("Beginning second data manipulation")
+  print(system.time({
+
   absolutePath <- normalizePath(paste0(data_dir, "sw_data.csv"))
 
   beg = Sys.time()
@@ -265,12 +267,12 @@ initiators <- function(data_path, id="id", period="period",
                                          numCores)
   }
 
+  print("Finished second data manipulation")
+  }))
 
-  end = Sys.time()
-  print("processing time of second data manipulation with mclapply (Sys.time):")
-  print(end - beg)
-  print("------------end of second data manipulation!----------------")
 
+  print("Loading expanded data")
+  print(system.time({
   range <- manipulate$range
   min_period = manipulate$min_period
   max_period = manipulate$max_period
@@ -291,6 +293,9 @@ initiators <- function(data_path, id="id", period="period",
   })
 
   write.csv(df, paste0(data_dir, "temp_data.csv"), row.names=FALSE)
+
+  print("Finished loading expanded")
+  }))
   # print("----------------------------------------------")
   # print("Analysis of weights for switching treatment:")
   # print(summary(switch_data[, weight]))
