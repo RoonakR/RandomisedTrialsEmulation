@@ -269,7 +269,7 @@ expand_switch <- function(id_num, data_address,
                           outcomeCov_var, where_var,
                           use_censor, maxperiod, minperiod,
                           lag_p_nosw, keeplist, data_dir){
-  d = data_address[bigmemory::mwhich(data_address, c("id"), c(id_num), c('eq')),]
+  d = data_address[bigmemory::mwhich(data_address, c("id","id"), c(id_num,id_num+500), c('ge','lt'),op='AND'),] # the chunk size (idnum+100) is matches to data_extension_parallel: j = seq(1, max_id, 100)
   if(is.null(nrow(d))){
     sw_data = as.data.table(t(d))
   }else{

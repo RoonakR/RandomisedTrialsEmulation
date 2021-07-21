@@ -169,7 +169,7 @@ data_extension_parallel <- function(data_address, keeplist, outcomeCov_var=NA,
   }
   range = (maxperiod - minperiod) + 1
 
-  j = seq(1, max_id, 1)
+  j = seq(1, max_id, 500)
 
   mclapply(j, expand_switch, data_address=data_address,
            outcomeCov_var=outcomeCov_var, where_var=where_var,
