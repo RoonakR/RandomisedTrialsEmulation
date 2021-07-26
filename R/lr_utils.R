@@ -244,7 +244,12 @@ expand <- function(sw_data,
   setnames(switch_data, c("init"), c("assigned_treatment"))
   switch_data = switch_data[expand == 1]
   switch_data = switch_data[, ..keeplist]
-  fwrite(switch_data, paste0(data_dir, "switch_data.csv"), append=TRUE, row.names=FALSE)
+  # fwrite(switch_data, paste0(data_dir, "switch_data.csv"), append=TRUE, row.names=FALSE)
+
+  for(p in unique(switch_data[,"for_period"])){
+    fwrite(switch_data[for_period==p,], paste0(data_dir, "trial_",p,".csv"), append=TRUE, row.names=FALSE, nThread = 2)
+  }
+
   rm(temp_data, switch_data)
   gc()
 }
