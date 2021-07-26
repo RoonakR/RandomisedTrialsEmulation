@@ -331,7 +331,8 @@ data_preparation <- function(data_path, id="id", period="period",
   }
   keeplist <- c(keeplist, model_var)
 
-  beg = Sys.time()
+  print("Starting data manipulation")
+  timimg <- system.time({
 
   data_manipulation(data, data_path, keeplist,
                     treatment, id, period, outcome, eligible,
@@ -347,13 +348,18 @@ data_preparation <- function(data_path, id="id", period="period",
                     eligible_wts_1, lag_p_nosw, where_var, data_dir,
                     numCores)
 
-  end = Sys.time()
-  print("processing time of data manipulation (Sys.time):")
-  print(end - beg)
-  print("------------end of first data manipulation!----------------")
+  })
+  print("Finished data manipulation")
+  print(timing)
+  rm(timing)
+  print("----------------------------")
+
   absolutePath <- normalizePath(paste0(data_dir, "sw_data.csv"))
 
-  beg = Sys.time()
+
+  print("Starting data extension")
+  timimg <- system.time({
+
 
   df <- data.frame(matrix(ncol = length(keeplist), nrow = 0))
   colnames(df) <- keeplist
@@ -392,10 +398,11 @@ data_preparation <- function(data_path, id="id", period="period",
   }
 
 
-  end = Sys.time()
-  print("processing time of second data manipulation with mclapply (Sys.time):")
-  print(end - beg)
-  print("------------end of second data manipulation!----------------")
+  })
+  print("Finished data extension")
+  print(timing)
+  rm(timing)
+  print("----------------------------")
 
   range <- manipulate$range
   min_period = manipulate$min_period
