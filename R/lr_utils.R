@@ -61,7 +61,7 @@ weight_lr <- function(l){
 #' @param numCores Number of cores for parallel programming
 
 case_control_func <- function(period_num, data_address, n_control=5,
-                              data_dir="~/rds/hpc-work/",
+                              data_dir="~/rds/hpc-work/", name_csv="temp_data.csv",
                               numCores=NA){
   case_util <- function(data, n_control=5){
     ### cases occurred at each period and follow-up visit
@@ -96,7 +96,7 @@ case_control_func <- function(period_num, data_address, n_control=5,
   }
 
   new_d = rbindlist(m)
-  fwrite(new_d, paste0(data_dir, "temp_data.csv"), append=TRUE, row.names=FALSE)
+  fwrite(new_d, file.path(data_dir, name_csv), append=TRUE, row.names=FALSE)
   rm(d_period, d, m, new_d)
   gc()
 }
@@ -135,17 +135,20 @@ robust_calculation <- function(model, data_id){
   se = sqrt(diag(v))
   print("-------------------------------------------------------")
   print("Robust standard error:")
-  print(se)
-  avg = rbind(est_temp, se)
-  output = t(avg)
-  output = data.table(output)
-  names(output)[names(output) == "est_temp"] <- "estimate"
-  names(output)[names(output) == "se"] <- "std"
-  output[, name := names(model$coefficients)]
+  output <- data.table(names = names(model$coefficients),
+                       estimate = est_temp,
+                       robust_se = se[names(est_temp)])
+  # print(se)
+  # avg = rbind(est_temp, se)
+  # output = t(avg)
 
-  output[, lb := estimate - (1.96 * std)]
-  output[, ub := estimate + (1.96 * std)]
-  output[, z := estimate/std]
+  # names(output)[names(output) == "est_temp"] <- "estimate"
+  # names(output)[names(output) == "se"] <- "std"
+  # output[, name := names(model$coefficients)]
+
+  output[, lb := estimate - (1.96 * robust_se)]
+  output[, ub := estimate + (1.96 * robust_se)]
+  output[, z := estimate/robust_se]
   output[, p_value := format.pval(2*(1-pnorm(abs(z))), eps=0.001)]
   return(output)
 }
@@ -162,12 +165,13 @@ robust_calculation <- function(model, data_id){
 #' @param lag_p_nosw when 1 this will set the first weight to be 1 and use p_nosw_d and p_nosw_n at followup-time (t-1) for calculating the weights at followup-time t - can be set to 0 which will increase the maximum and variance of weights (Defaults to 1)
 #' @param keeplist A list contains names of variables used in final model
 #' @param data_dir Direction to save data
+#' @param separate_files Write to one file or one per trial
 #' @import data.table
 
 expand <- function(sw_data,
                    outcomeCov_var, where_var,
                    use_censor, maxperiod, minperiod,
-                   lag_p_nosw, keeplist, data_dir){
+                   lag_p_nosw, keeplist, data_dir, separate_files){
 
   temp_data = data.table(id = sw_data[, id],
                          period = sw_data[, period],
@@ -222,6 +226,14 @@ expand <- function(sw_data,
     switch_data[, treatment := init]
   }
 
+  # for(pid in unique(switch_data$id)){
+  #   print(pid)
+  #   if(pid == 251268) browser()
+  #   tmp <- switch_data[expand == 1 & id == pid,]
+  #   expand_func(d = tmp, (maxperiod-minperiod)+1, minperiod)
+  # }
+
+
   switch_data[expand == 1, expand := expand_func(.SD, (maxperiod-minperiod)+1, minperiod), by=id]
 
   if(lag_p_nosw == 1){
@@ -244,14 +256,24 @@ expand <- function(sw_data,
   setnames(switch_data, c("init"), c("assigned_treatment"))
   switch_data = switch_data[expand == 1]
   switch_data = switch_data[, ..keeplist]
-  # fwrite(switch_data, paste0(data_dir, "switch_data.csv"), append=TRUE, row.names=FALSE)
 
-  for(p in unique(switch_data[,"for_period"])){
-    fwrite(switch_data[for_period==p,], paste0(data_dir, "trial_",p,".csv"), append=TRUE, row.names=FALSE, nThread = 2)
+
+  if(!separate_files){
+    fwrite(switch_data, file.path(data_dir, "switch_data.csv"), append=TRUE, row.names=FALSE)
+  } else if(separate_files) {
+    for(p in unique(switch_data[,"for_period"])[[1]]){
+      print(paste("writing",p))
+      fwrite(switch_data[for_period==p,], file.path(data_dir, paste0("trial_",p,".csv")), append=TRUE, row.names=FALSE, nThread = 10)
+    }
   }
+  #
 
+
+  print("Finished writing")
   rm(temp_data, switch_data)
   gc()
+
+  print("Finished expansion")
 }
 
 
@@ -274,14 +296,18 @@ expand_switch <- function(id_num, data_address,
                           outcomeCov_var, where_var,
                           use_censor, maxperiod, minperiod,
                           lag_p_nosw, keeplist, data_dir){
-  d = data_address[bigmemory::mwhich(data_address, c("id","id"), c(id_num,id_num+500), c('ge','lt'),op='AND'),] # the chunk size (idnum+100) is matches to data_extension_parallel: j = seq(1, max_id, 100)
+  d = data_address[bigmemory::mwhich(data_address, c("id","id"), c(id_num,id_num+500), c('ge','lt'),op='AND'),] # the chunk size (idnum+100)  matches to data_extension_parallel(): j = seq(1, max_id, 100)
   if(is.null(nrow(d))){
     sw_data = as.data.table(t(d))
   }else{
     sw_data = as.data.table(d)
   }
-  expand(sw_data, outcomeCov_var, where_var, use_censor, maxperiod, minperiod,
-         lag_p_nosw, keeplist, data_dir)
+
+  if(nrow(sw_data)!=0){
+    expand(sw_data, outcomeCov_var, where_var, use_censor, maxperiod, minperiod,
+           lag_p_nosw, keeplist, data_dir, separate_files = TRUE)
+
+  }
   rm(sw_data, d)
   gc()
 }

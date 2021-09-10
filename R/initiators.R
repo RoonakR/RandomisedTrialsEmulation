@@ -58,7 +58,7 @@
 #' @import parallel
 #' @import data.table
 #' @importFrom Rcpp sourceCpp
-#' @useDynLib RandomisedTrialsEmulation
+#' @useDynLib RandomisedTrialsEmulationChunks
 
 initiators <- function(data_path, id="id", period="period",
                        treatment="treatment", outcome="outcome",
@@ -209,7 +209,8 @@ data_preparation <- function(data_path, id="id", period="period",
                              where_var=NA, where_case=NA, run_base_model=1,
                              case_control=0, n_control=5,
                              data_dir="~/rds/hpc-work/",
-                             numCores=NA){
+                             numCores=NA,
+                             parallel_expansion = TRUE){
   if(is.na(model_var)){
     if(use_censor == 0){
       model_var = c("dose", "dose2")
@@ -308,12 +309,14 @@ data_preparation <- function(data_path, id="id", period="period",
 
   # line1 = read.csv(data_path, header = TRUE, nrows = 1)
   # col.names = colnames(line1)
-
+  if(!file.exists(data_path)) stop(paste0("'data_path' file not found: ", data_path))
   absolutePath <- normalizePath(data_path)
 
-  data = tryCatch({
-    suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="double"))
-  })
+  # This is a dummy before fixing data_manipulation etc to remove argument
+  data <- data.frame(a=1)
+  # data = tryCatch({
+    # suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="double"))
+  # })
 
   keeplist <- c("id", "for_period", "followup_time", "assigned_treatment",
                 "outcome", "weight")
@@ -332,7 +335,7 @@ data_preparation <- function(data_path, id="id", period="period",
   keeplist <- c(keeplist, model_var)
 
   print("Starting data manipulation")
-  timimg <- system.time({
+  timing <- system.time({
 
   data_manipulation(data, data_path, keeplist,
                     treatment, id, period, outcome, eligible,
@@ -354,27 +357,27 @@ data_preparation <- function(data_path, id="id", period="period",
   rm(timing)
   print("----------------------------")
 
-  absolutePath <- normalizePath(paste0(data_dir, "sw_data.csv"))
+  absolutePath <- normalizePath(file.path(data_dir, "sw_data.csv"))
 
 
   print("Starting data extension")
-  timimg <- system.time({
+  timing <- system.time({
 
 
   df <- data.frame(matrix(ncol = length(keeplist), nrow = 0))
   colnames(df) <- keeplist
 
-  write.csv(df, paste0(data_dir, "switch_data.csv"), row.names=FALSE)
+  write.csv(df, file.path(data_dir, "switch_data.csv"), row.names=FALSE)
 
-  if(numCores == 1){
+  if(!parallel_expansion){
     manipulate = tryCatch(
       data_extension(absolutePath, keeplist, outcomeCov_var,
                      first_period, last_period, use_censor, lag_p_nosw,
                      where_var, data_dir),
       error = function(err){
         gc()
-        file.remove(paste0(data_dir, "switch_data.csv"))
-        write.csv(df, paste0(data_dir, "switch_data.csv"), row.names=FALSE)
+        file.remove(file.path(data_dir, "switch_data.csv"))
+        write.csv(df, file.path(data_dir, "switch_data.csv"), row.names=FALSE)
         print("The memory is not enough to do the data extention without data division so performed in parallel programming fashion!")
         data = tryCatch({
           suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="double"))
@@ -415,83 +418,193 @@ data_preparation <- function(data_path, id="id", period="period",
     last_followup = max_period
   }
 
-  rm(data, absolutePath)
+  rm(data)
   gc()
 
-  absolutePath <- normalizePath(paste0(data_dir, "switch_data.csv"))
-  data_address = tryCatch({
-    suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, shared=FALSE, type="double"))
-  })
-
-  write.csv(df, paste0(data_dir, "temp_data.csv"), row.names=FALSE)
-  # print("----------------------------------------------")
-  # print("Analysis of weights for switching treatment:")
-  # print(summary(switch_data[, weight]))
-  # print(describe(switch_data[, weight]))
-  # print("variance:")
-  # print(var(switch_data[, weight]))
-  # print("standard deviation:")
-  # print(sd(switch_data[, weight]))
-
-  if(case_control == 1){
-    j = seq(min_period, max_period, 1)
-    beg = Sys.time()
-    if(numCores == 1) {
-      #cl <- makeCluster(numCores)
-      # clusterExport(cl,c("data_address", "n_control", "data_dir"),
-      #               envir=environment())
-      # parLapply(cl, j, case_control_func, data_address, n_control,
-      #                     data_dir)
-      # registerDoParallel(cl)
-      # foreach(id_num=j) %dopar% {
-      #   case_control_func(id_num, data_address=data_address,
-      #                     n_control=n_control,
-      #                     data_dir=data_dir)
-      # }
-      # stopCluster(cl)
-      lapply(j, case_control_func, data_address, n_control,
-             data_dir, numCores)
-    } else {
-      mclapply(j, case_control_func,
-               data_address=data_address, n_control=n_control,
-               data_dir=data_dir, numCores,
-               mc.cores=numCores)
-    }
-
-    end = Sys.time()
-    print("processing time of case control (Sys.time):")
-    print(end-beg)
-    absolutePath <- normalizePath(paste0(data_dir, "temp_data.csv"))
-  }else{
-    if(nrow(data_address) >= 2^31 -1){
-      print("Number of rows is more than R limit (2^31 -1) so we apply the case control sampling!")
-      if(numCores == 1) {
-        # cl <- makeCluster(numCores)
-        # clusterExport(cl,c("data_address", "n_control", "data_dir"),
-        #               envir=environment())
-        # parLapply(cl, j, case_control_func, data_address, n_control,
-        #           data_dir)
-        # stopCluster(cl)
-        lapply(j, case_control_func, data_address, n_control,
-               data_dir, numCores)
-      } else {
-        mclapply(j, case_control_func,
-                 data_address=data_address, n_control=n_control,
-                 data_dir=data_dir, numCores,
-                 mc.cores=numCores)
-      }
-      absolutePath <- normalizePath(paste0(data_dir, "temp_data.csv"))
-    }else{
-      absolutePath <- normalizePath(paste0(data_dir, "switch_data.csv"))
-    }
-  }
-
-  rm(data_address)
-  gc()
+  # absolutePath <- normalizePath(paste0(data_dir, "switch_data.csv"))
+  # data_address = tryCatch({
+  #   suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, shared=FALSE, type="double"))
+  # })
+  #
+  # write.csv(df, paste0(data_dir, "temp_data.csv"), row.names=FALSE)
+  # # print("----------------------------------------------")
+  # # print("Analysis of weights for switching treatment:")
+  # # print(summary(switch_data[, weight]))
+  # # print(describe(switch_data[, weight]))
+  # # print("variance:")
+  # # print(var(switch_data[, weight]))
+  # # print("standard deviation:")
+  # # print(sd(switch_data[, weight]))
+  #
+  # if(case_control == 1){
+  #   j = seq(min_period, max_period, 1)
+  #   beg = Sys.time()
+  #   if(numCores == 1) {
+  #     #cl <- makeCluster(numCores)
+  #     # clusterExport(cl,c("data_address", "n_control", "data_dir"),
+  #     #               envir=environment())
+  #     # parLapply(cl, j, case_control_func, data_address, n_control,
+  #     #                     data_dir)
+  #     # registerDoParallel(cl)
+  #     # foreach(id_num=j) %dopar% {
+  #     #   case_control_func(id_num, data_address=data_address,
+  #     #                     n_control=n_control,
+  #     #                     data_dir=data_dir)
+  #     # }
+  #     # stopCluster(cl)
+  #     lapply(j, case_control_func, data_address, n_control,
+  #            data_dir, numCores)
+  #   } else {
+  #     mclapply(j, case_control_func,
+  #              data_address=data_address, n_control=n_control,
+  #              data_dir=data_dir, numCores,
+  #              mc.cores=numCores)
+  #   }
+  #
+  #   end = Sys.time()
+  #   print("processing time of case control (Sys.time):")
+  #   print(end-beg)
+  #   absolutePath <- normalizePath(paste0(data_dir, "temp_data.csv"))
+  # } else if(nrow(data_address) >= 2^31 -1){
+  #     print("Number of rows is more than R limit (2^31 -1) so we apply the case control sampling!")
+  #     if(numCores == 1) {
+  #       # cl <- makeCluster(numCores)
+  #       # clusterExport(cl,c("data_address", "n_control", "data_dir"),
+  #       #               envir=environment())
+  #       # parLapply(cl, j, case_control_func, data_address, n_control,
+  #       #           data_dir)
+  #       # stopCluster(cl)
+  #       lapply(j, case_control_func, data_address, n_control,
+  #              data_dir, numCores)
+  #     } else {
+  #       mclapply(j, case_control_func,
+  #                data_address=data_address, n_control=n_control,
+  #                data_dir=data_dir, numCores,
+  #                mc.cores=numCores)
+  #     }
+  #     absolutePath <- normalizePath(paste0(data_dir, "temp_data.csv"))
+  #
+  #   } else {
+  #     absolutePath <- normalizePath(paste0(data_dir, "switch_data.csv"))
+  #   }
+  #
+  #
+  # rm(data_address)
+  # gc()
 
   return(list(absolutePath = absolutePath,
               first_followup = first_followup,
               last_followup =last_followup))
+}
+
+
+
+#' Case-control sampling from extended data
+#'
+#' @return
+#' @export
+#'
+#' @examples
+case_control_sampling <- function(data_dir, n_control, numCores){
+  print("Starting case-control sampling function")
+
+   # get the periods
+  print("Getting the periods (inefficient)")
+  timing <- system.time({
+    small_data <- fread(normalizePath(file.path(data_dir, "sw_data.csv")))
+    max_period = max(small_data[, "period"])
+    min_period = min(small_data[, "period"])
+  })
+  rm(small_data)
+  print("Finished getting the periods")
+  print(timing)
+  print("-------------------------")
+
+
+
+  # read the data:
+  print("Reading the expanded data")
+  timing <- system.time({
+    absolutePath <- normalizePath(file.path(data_dir, "switch_data.csv"))
+    data_address = tryCatch({
+      suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, shared=FALSE, type="double"))
+    })
+  })
+  print("Finished reading the expanded data")
+  print(timing)
+  print("-------------------------")
+
+for(i in seq_len(n_control)){
+
+  print("Starting the sampling")
+  timing <- system.time({
+    j = seq(min_period, max_period, 1)
+    mclapply(j, case_control_func,
+             data_address=data_address, n_control=n_control[i],
+             data_dir=data_dir,
+             name_csv = paste0("cc_sample_",i,"_1x",n_control[i],".csv"),
+             numCores=1,
+             mc.cores=numCores)
+  })
+  print("Finished reading the sampling")
+  print(timing)
+  print("-------------------------")
+}
+}
+
+#' Case-control sampling from extended data in separate trial csvs
+#'
+#' @param data_dir Directory containing trial-level extended data
+#' @param n_control Number of controls to sample per case
+#' @param numCores Number of cores for parallel processing
+#'
+#' @return
+#' @export
+#'
+case_control_sampling_trials <- function(data_dir, n_control, numCores, name_prefix="cc_sample_", infile_pattern = "trial_"){
+  trial_files <- dir(path=data_dir, pattern = infile_pattern, full.names = TRUE)
+
+
+  case_util <- function(data, n_control=5){
+    ### cases occurred at each period and follow-up visit
+    casedatajk<-data[data$outcome==1, ]
+    ### controls (still under follow-up and events haven't occurred) at each period and follow-up visit
+    controldatajk<-data[data$outcome==0, ]
+    dataall = NULL
+    ncase<-dim(casedatajk)[1]  ## number of cases
+    ncontrol<-dim(controldatajk)[1]  ## number of potential controls
+    if(ncase>0){
+      #cluster = 1  ## sampling cluster index
+      controlselect<-controldatajk[sample(1:ncontrol, n_control*ncase),]  ## sample 5 controls for each case without replacement
+      #casedatajk$strata<-cluster*100000+1:ncase    ## create index for each sampled case-control strata
+      #controlselect$strata<-cluster*100000+rep(1:ncase,each=5) ## create index for each sampled case-control strata
+      dataall<-rbind(casedatajk, controlselect) ## append sampled data
+    }
+    return(dataall)
+  }
+
+  trial_fun <- function(trial_file){
+    d_period <- fread(input = trial_file)
+    d <- split(d_period, d_period$followup_time)
+
+    all_samples <- lapply(n_control, function(nc){
+      m <- lapply(d, case_util, n_control=nc)
+      rbindlist(m)
+    })
+
+    rbindlist(all_samples, idcol = TRUE)
+  }
+
+  trial_samples <- mclapply(trial_files, trial_fun, mc.cores = numCores, mc.preschedule = FALSE)
+  trial_samples_bind <- rbindlist(trial_samples)
+
+  if(nrow(trial_samples_bind)>0){
+    mapply(fwrite,
+           split(trial_samples_bind, by = ".id", keep.by = FALSE),
+           file.path(data_dir, paste0(name_prefix,seq_along(n_control),"_1x",n_control,".csv")),
+           append=FALSE, row.names=FALSE)
+  }
+
 }
 
 #' Data modelling Function
@@ -548,6 +661,7 @@ data_preparation <- function(data_path, id="id", period="period",
 #' @param data_dir
 #' @param numCores Number of cores for parallel programming (default value is maximum cores and parallel programming)
 #' data_modelling()
+#' @param glm_function Function to use for fitting GLMs: 'parglm' (from parglm package) or 'glm' (from stats package).
 #' @export
 
 
@@ -574,32 +688,49 @@ data_modelling <- function(id="id", period="period",
                            case_control=0, n_control=5,
                            data_dir="~/rds/hpc-work/",
                            absolutePath="~/rds/hpc-work/switch_data.csv",
-                           numCores=NA){
+                           numCores=NA,
+                           glm_function = c('parglm', 'glm')
+                           ){
 
-  path = normalizePath(paste0(data_dir, "sw_data.csv"))
-  data_address = tryCatch({
-    suppressWarnings(out <- bigmemory::read.big.matrix(path, header = TRUE, type="double"))
-  })
+  # path = normalizePath(paste0(data_dir, "sw_data.csv"))
+  # data_address = tryCatch({
+  #   suppressWarnings(out <- bigmemory::read.big.matrix(path, header = TRUE, type="double"))
+  # })
+  #
+  # max_period = max(data_address[, "period"])
+  # min_period = min(data_address[, "period"])
+  #
+  # if(is.na(first_followup)){
+  #   first_followup = 0
+  # }
+  # if(is.na(last_followup)){
+  #   last_followup = max_period
+  # }
+  #
+  # rm(path, data_address)
+  # gc()
+  #
 
-  max_period = max(data_address[, "period"])
-  min_period = min(data_address[, "period"])
+  data <- fread(absolutePath)
 
-  if(is.na(first_followup)){
-    first_followup = 0
-  }
-  if(is.na(last_followup)){
-    last_followup = max_period
-  }
+  # data = tryCatch({
+  #   suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header=TRUE, shared=FALSE, type="double"))
+  # })
 
-  rm(path, data_address)
-  gc()
 
-  data = tryCatch({
-    suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header=TRUE, shared=FALSE, type="double"))
-  })
+  # if there are any limits on the follow up
+  if(!is.na(first_followup) | !is.na(last_followup)){
+    #make sure that the other is well defined
+    if(is.na(first_followup)) first_followup <- 0
+    if(is.na(last_followup)) last_followup <- Inf
 
-  temp_data = data[bigmemory::mwhich(data, c("followup_time", "followup_time"), c(first_followup, last_followup), c('ge', 'le'), 'AND'), ]
-  temp_data = as.data.table(temp_data)
+    #subset the data
+    temp_data = data[bigmemory::mwhich(data, c("followup_time", "followup_time"), c(first_followup, last_followup), c('ge', 'le'), 'AND'), ]
+    temp_data = as.data.table(temp_data)
+  } else temp_data <- data
+
+
+
 
   rm(data)
   gc()
@@ -607,7 +738,7 @@ data_modelling <- function(id="id", period="period",
   if(any(!is.na(outcomeClass))){
     for(i in 1:length(outcomeClass)){
       x = factor(temp_data[[eval(outcomeClass[i])]])
-      x = relevel(x, ref="1")
+      # x = relevel(x, ref="1")
       temp_data[, c(eval(outcomeClass[i])) := NULL]
       temp_data[, eval(outcomeClass[i]) := x]
     }
@@ -677,10 +808,18 @@ data_modelling <- function(id="id", period="period",
       }
     }
     beg = Sys.time()
-    model.full = parglm::parglm(as.formula(regform), data=temp_data,
-                                weights=temp_data[, weight],
-                                family=binomial(link = "logit"),
-                                control=parglm::parglm.control(nthreads = 4, method='FAST'))
+
+    glm_function <- match.arg(glm_function)
+    if(glm_function == 'parglm'){
+      model.full = parglm::parglm(as.formula(regform), data=temp_data,
+                                  weights=temp_data[, weight],
+                                  family=binomial(link = "logit"),
+                                  control=parglm::parglm.control(nthreads = 4, method='FAST'))
+    } else if(glm_function == 'glm'){
+      model.full = glm(as.formula(regform), data=temp_data,
+                                  weights=temp_data[, weight],
+                                  family=binomial(link = "logit"))
+    }
     end = Sys.time()
     print("Base Analysis")
     print(summary(model.full))
@@ -698,5 +837,5 @@ data_modelling <- function(id="id", period="period",
     print(end - beg)
   }
 
-  return(model.full)
+  return(list(model = model.full, robust = out))
 }

@@ -54,7 +54,8 @@ data_preparation(
   case_control = 0,
   n_control = 5,
   data_dir = "~/rds/hpc-work/",
-  numCores = NA
+  numCores = NA,
+  parallel_expansion = TRUE
 )
 }
 \arguments{

@@ -14,10 +14,10 @@ NULL
 NULL
 
 expand_func <- function(d, range, first_period) {
-    .Call('_RandomisedTrialsEmulation_expand_func', PACKAGE = 'RandomisedTrialsEmulation', d, range, first_period)
+    .Call('_RandomisedTrialsEmulationChunks_expand_func', PACKAGE = 'RandomisedTrialsEmulationChunks', d, range, first_period)
 }
 
 censor_func <- function(sw_data) {
-    .Call('_RandomisedTrialsEmulation_censor_func', PACKAGE = 'RandomisedTrialsEmulation', sw_data)
+    .Call('_RandomisedTrialsEmulationChunks_censor_func', PACKAGE = 'RandomisedTrialsEmulationChunks', sw_data)
 }
 

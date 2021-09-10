@@ -131,7 +131,7 @@ data_manipulation <- function(data_address, data_path, keeplist,
     sw_data[, wt := 1]
   }
 
-  fwrite(sw_data, paste0(data_dir, "sw_data.csv"))
+  fwrite(sw_data, file.path(data_dir, "sw_data.csv"))
   rm(datatable, temp_data, sw_data)
   gc()
 }
@@ -217,7 +217,7 @@ data_extension <- function(data_path, keeplist, outcomeCov_var=NA,
   range = (maxperiod - minperiod) + 1
 
   expand(sw_data, outcomeCov_var, where_var, use_censor, maxperiod, minperiod,
-         lag_p_nosw, keeplist, data_dir)
+         lag_p_nosw, keeplist, data_dir, separate_files = FALSE)
 
   rm(sw_data)
   gc()

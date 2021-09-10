@@ -9,6 +9,7 @@ case_control_func(
   data_address,
   n_control = 5,
   data_dir = "~/rds/hpc-work/",
+  name_csv = "temp_data.csv",
   numCores = NA
 )
 }

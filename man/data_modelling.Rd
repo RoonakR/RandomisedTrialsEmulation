@@ -54,7 +54,8 @@ data_modelling(
   n_control = 5,
   data_dir = "~/rds/hpc-work/",
   absolutePath = "~/rds/hpc-work/switch_data.csv",
-  numCores = NA
+  numCores = NA,
+  glm_function = c("parglm", "glm")
 )
 }
 \arguments{
@@ -156,6 +157,8 @@ data_modelling(
 
 \item{numCores}{Number of cores for parallel programming (default value is maximum cores and parallel programming)
 data_modelling()}
+
+\item{glm_function}{Function to use for fitting GLMs: 'parglm' (from parglm package) or 'glm' (from stats package).}
 }
 \description{
 This function do the modelling.

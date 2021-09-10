@@ -5,9 +5,14 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // expand_func
 Rcpp::IntegerVector expand_func(Rcpp::DataFrame& d, int range, int first_period);
-RcppExport SEXP _RandomisedTrialsEmulation_expand_func(SEXP dSEXP, SEXP rangeSEXP, SEXP first_periodSEXP) {
+RcppExport SEXP _RandomisedTrialsEmulationChunks_expand_func(SEXP dSEXP, SEXP rangeSEXP, SEXP first_periodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -20,7 +25,7 @@ END_RCPP
 }
 // censor_func
 Rcpp::DataFrame censor_func(Rcpp::DataFrame& sw_data);
-RcppExport SEXP _RandomisedTrialsEmulation_censor_func(SEXP sw_dataSEXP) {
+RcppExport SEXP _RandomisedTrialsEmulationChunks_censor_func(SEXP sw_dataSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -31,12 +36,12 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_RandomisedTrialsEmulation_expand_func", (DL_FUNC) &_RandomisedTrialsEmulation_expand_func, 3},
-    {"_RandomisedTrialsEmulation_censor_func", (DL_FUNC) &_RandomisedTrialsEmulation_censor_func, 1},
+    {"_RandomisedTrialsEmulationChunks_expand_func", (DL_FUNC) &_RandomisedTrialsEmulationChunks_expand_func, 3},
+    {"_RandomisedTrialsEmulationChunks_censor_func", (DL_FUNC) &_RandomisedTrialsEmulationChunks_censor_func, 1},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_RandomisedTrialsEmulation(DllInfo *dll) {
+RcppExport void R_init_RandomisedTrialsEmulationChunks(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }
