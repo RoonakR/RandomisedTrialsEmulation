@@ -10,15 +10,18 @@ using namespace Rcpp;
 // [[Rcpp::export(expand_func)]]
 Rcpp::IntegerVector expand_func(Rcpp::DataFrame& d, int range, int first_period){
   int n = d.nrows();
+  // Rprintf("rows: %i \n", n);
   Rcpp::IntegerVector ex (range, 1);
   Rcpp::IntegerVector expand (n, 1);
   Rcpp::IntegerVector t_period = d["for_period"];
   Rcpp::IntegerVector t_new = d["period_new"];
   Rcpp::IntegerVector t_switch = d["switch_new"];
   for(int i=0; i<n; i++){
-    expand[i] = ex[t_period[i]];
+    // Rprintf("loop i: %i \n", i);
+    expand[i] = ex[t_period[i]-1];
     if(t_period[i] == t_new[i] && t_switch[i] == 1){
-      Rcpp::IntegerVector idx = seq(first_period, t_period[i]);
+      // Rprintf("If YES!");
+      Rcpp::IntegerVector idx = seq(first_period, t_period[i]) - 1;
       ex[idx] = 0;
     }
   }
