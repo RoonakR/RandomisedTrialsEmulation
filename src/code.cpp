@@ -1,7 +1,7 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
-//' Expand Function
+//' @title Expand Function
 //'
 //' @param d A dataframe with for_period, period_new and switch_new columns
 //' @param range The range of the period values
@@ -28,7 +28,7 @@ Rcpp::IntegerVector expand_func(Rcpp::DataFrame& d, int range, int first_period)
   return expand;
 }
 
-//' Censoring Function
+//' @title Censoring Function
 //'
 //' @param sw_data A dataframe with the columns needed in censoring process
 
