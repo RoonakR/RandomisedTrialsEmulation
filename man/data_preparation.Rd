@@ -157,7 +157,9 @@ data_preparation(
 
 \item{data_dir}{Direction to save data}
 
-\item{numCores}{Number of cores for parallel programming (default value is maximum cores and parallel programming)
+\item{numCores}{Number of cores for parallel programming (default value is maximum cores and parallel programming)}
+
+\item{parallel_expansion}{Do the expansion in chunks (and in parallel if numCores > 1)
 data_preparation()}
 }
 \description{

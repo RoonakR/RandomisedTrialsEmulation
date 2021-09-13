@@ -20,6 +20,10 @@ case_control_func(
 
 \item{n_control}{Number of controls in the case control sampling Defaults to 5}
 
+\item{data_dir}{Directory to write sampled data csv in to}
+
+\item{name_csv}{File name for the sampled data csv file}
+
 \item{numCores}{Number of cores for parallel programming}
 }
 \description{

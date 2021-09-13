@@ -4,10 +4,14 @@
 \alias{case_control_sampling}
 \title{Case-control sampling from extended data}
 \usage{
-case_control_sampling(data_dir, n_control, numCores)
+case_control_sampling(data_dir, n_control, numCores = 1)
 }
-\value{
+\arguments{
+\item{data_dir}{Directory to read 'sw_data.csv' from}
 
+\item{n_control}{Number of controls for each case to sample}
+
+\item{numCores}{Number of cores used by mclapply for sampling from each trial}
 }
 \description{
 Case-control sampling from extended data
