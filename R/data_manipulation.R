@@ -1,6 +1,7 @@
 #' Data Manipulation Function
 #'
 #' This function takes the data and all the variables and do the extension preprocess and weight calculation
+#'
 #' @param data_address Address for data read with bigmemory
 #' @param data_path Path of the csv file
 #' @param keeplist A list contains names of variables used in final model
@@ -35,6 +36,7 @@
 #' @param lag_p_nosw when 1 this will set the first weight to be 1 and use p_nosw_d and p_nosw_n at followup-time (t-1) for calculating the weights at followup-time t - can be set to 0 which will increase the maximum and variance of weights (Defaults to 1)
 #' @param where_var Variables used in where conditions used in subsetting the data used in final analysis (where_case), the variables not included in the final model
 #' @param data_dir Direction to save data
+#' @param numCores Number of cores to be used for fitting weights (passed to `weight_func`)
 #' data_manipulation()
 
 data_manipulation <- function(data_address, data_path, keeplist,
@@ -55,6 +57,13 @@ data_manipulation <- function(data_address, data_path, keeplist,
                               data_dir="~/rds/hpc-work/",
                               numCores=NA){
 
+  # Dummy variables used in data.table calls declared to prevent package check NOTES:
+  time_of_event <- am_1 <- cumA <- regime_start <- time_on_regime <- time_on_regime2 <-
+  regime_start_shift <- started0 <- started1 <- stop0 <- stop1 <- eligible0_sw <-
+  eligible1_sw <- delete <- eligible0 <- eligible1 <- wt <- NULL
+  ##########
+
+
   datatable = read_data(data_address, data_path, NA, id,
                         period, treatment, outcome, eligible,
                         eligible_wts_0, eligible_wts_1,
@@ -69,7 +78,7 @@ data_manipulation <- function(data_address, data_path, keeplist,
   temp_data[, time_of_event := 9999]
   temp_data[(!is.na(outcome) & outcome == 1),
             time_of_event := as.double(period)]
-  temp_data = temp_data[, .(id, time_of_event)]
+  temp_data = temp_data[, list(id, time_of_event)]
   datatable = datatable[temp_data, on="id"]
 
   temp_data = datatable[, first:=!duplicated(datatable[, id])]
@@ -85,7 +94,7 @@ data_manipulation <- function(data_address, data_path, keeplist,
   temp_data[(first == FALSE & am_1 == treatment), switch := 0 ]
 
   temp_data[(first == FALSE & switch == 1), regime_start := period]
-  temp_data[, regime_start_shift := regime_start[1], .(cumsum(!is.na(regime_start)))]
+  temp_data[, regime_start_shift := regime_start[1], list(cumsum(!is.na(regime_start)))]
   temp_data[(first == FALSE & switch == 0), regime_start := regime_start_shift]
 
   temp_data[, regime_start_shift := shift(regime_start)]
@@ -99,6 +108,8 @@ data_manipulation <- function(data_address, data_path, keeplist,
   temp_data[, regime_start_shift := NULL]
 
   datatable = copy(temp_data)
+  rm(temp_data)
+  gc()
 
   sw_data <- copy(datatable)
   if(use_censor == 1){
@@ -132,7 +143,7 @@ data_manipulation <- function(data_address, data_path, keeplist,
   }
 
   fwrite(sw_data, file.path(data_dir, "sw_data.csv"))
-  rm(datatable, temp_data, sw_data)
+  rm(datatable, sw_data)
   gc()
 }
 
@@ -203,6 +214,11 @@ data_extension <- function(data_path, keeplist, outcomeCov_var=NA,
                            use_censor=0,
                            lag_p_nosw=1, where_var=NA,
                            data_dir="~/rds/hpc-work/"){
+
+  # Dummy variables used in data.table calls declared to prevent package check NOTES:
+  id <- period <- NULL
+  ##########
+
   sw_data = fread(data_path, header = TRUE, sep = ",")
   max_id = max(sw_data[, id])
   maxperiod = max(sw_data[, period])

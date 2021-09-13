@@ -133,6 +133,7 @@ initiators <- function(data_path, id="id", period="period",
 #' Data preparation Function
 #'
 #' This function prepare the data for modelling.
+#'
 #' @param data_path The path to csv file
 #' @param id Name of the data column for id feature Defaults to id
 #' @param period Name of the data column for period feature Defaults to period
@@ -183,6 +184,7 @@ initiators <- function(data_path, id="id", period="period",
 #' @param n_control Number of controls used in case control sampling Defaults to 5
 #' @param data_dir Direction to save data
 #' @param numCores Number of cores for parallel programming (default value is maximum cores and parallel programming)
+#' @param parallel_expansion Do the expansion in chunks (and in parallel if numCores > 1)
 #' data_preparation()
 #' @export
 
@@ -367,7 +369,8 @@ data_preparation <- function(data_path, id="id", period="period",
   df <- data.frame(matrix(ncol = length(keeplist), nrow = 0))
   colnames(df) <- keeplist
 
-  write.csv(df, file.path(data_dir, "switch_data.csv"), row.names=FALSE)
+  fwrite(df, file = file.path(data_dir, "switch_data.csv"), row.names=FALSE)
+
 
   if(!parallel_expansion){
     manipulate = tryCatch(
@@ -377,7 +380,7 @@ data_preparation <- function(data_path, id="id", period="period",
       error = function(err){
         gc()
         file.remove(file.path(data_dir, "switch_data.csv"))
-        write.csv(df, file.path(data_dir, "switch_data.csv"), row.names=FALSE)
+        fwrite(df, file = file.path(data_dir, "switch_data.csv"), row.names=FALSE)
         print("The memory is not enough to do the data extention without data division so performed in parallel programming fashion!")
         data = tryCatch({
           suppressWarnings(out <- bigmemory::read.big.matrix(absolutePath, header = TRUE, type="double"))
@@ -501,11 +504,13 @@ data_preparation <- function(data_path, id="id", period="period",
 
 #' Case-control sampling from extended data
 #'
-#' @return
+#' @param data_dir Directory to read 'sw_data.csv' from
+#' @param n_control Number of controls for each case to sample
+#' @param numCores Number of cores used by mclapply for sampling from each trial
+#'
 #' @export
 #'
-#' @examples
-case_control_sampling <- function(data_dir, n_control, numCores){
+case_control_sampling <- function(data_dir, n_control, numCores=1){
   print("Starting case-control sampling function")
 
    # get the periods
@@ -557,8 +562,9 @@ for(i in seq_len(n_control)){
 #' @param data_dir Directory containing trial-level extended data
 #' @param n_control Number of controls to sample per case
 #' @param numCores Number of cores for parallel processing
+#' @param name_prefix Name of output csv files for each case-control sample, in the form `paste0(name_prefix,seq_along(n_control),"_1x",n_control,".csv")`
+#' @param infile_pattern Name of trial dataset csv files. This is passed to the `pattern` argument of `dir()`
 #'
-#' @return
 #' @export
 #'
 case_control_sampling_trials <- function(data_dir, n_control, numCores, name_prefix="cc_sample_", infile_pattern = "trial_"){
@@ -610,6 +616,7 @@ case_control_sampling_trials <- function(data_dir, n_control, numCores, name_pre
 #' Data modelling Function
 #'
 #' This function do the modelling.
+#'
 #' @param id Name of the data column for id feature Defaults to id
 #' @param period Name of the data column for period feature Defaults to period
 #' @param treatment Name of the data column for treatment feature Defaults to treatment
@@ -658,10 +665,12 @@ case_control_sampling_trials <- function(data_dir, n_control, numCores, name_pre
 #' @param case_control Run the case control sampling or not Defaults to 0
 #' @param n_control Number of controls used in case control sampling Defaults to 5
 #' @param absolutePath Direction to where the data for modelling is saved
-#' @param data_dir
+#' @param data_dir Ignored
 #' @param numCores Number of cores for parallel programming (default value is maximum cores and parallel programming)
 #' data_modelling()
 #' @param glm_function Function to use for fitting GLMs: 'parglm' (from parglm package) or 'glm' (from stats package).
+#'
+#' @import stats
 #' @export
 
 
@@ -691,6 +700,10 @@ data_modelling <- function(id="id", period="period",
                            numCores=NA,
                            glm_function = c('parglm', 'glm')
                            ){
+
+  # Dummy variables used in data.table calls declared to prevent package check NOTES:
+  weight <- NULL
+  ##########
 
   # path = normalizePath(paste0(data_dir, "sw_data.csv"))
   # data_address = tryCatch({
