@@ -9,7 +9,8 @@ case_control_sampling_trials(
   n_control,
   numCores,
   name_prefix = "cc_sample_",
-  infile_pattern = "trial_"
+  infile_pattern = "trial_",
+  subset_condition
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ case_control_sampling_trials(
 \item{name_prefix}{Name of output csv files for each case-control sample, in the form \code{paste0(name_prefix,seq_along(n_control),"_1x",n_control,".csv")}}
 
 \item{infile_pattern}{Name of trial dataset csv files. This is passed to the \code{pattern} argument of \code{dir()}}
+
+\item{subset_condition}{Expression used to \code{subset} the trial data before sampling}
 }
 \description{
 Case-control sampling from extended data in separate trial csvs
