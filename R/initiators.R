@@ -564,13 +564,20 @@ for(i in seq_len(n_control)){
 #' @param numCores Number of cores for parallel processing
 #' @param name_prefix Name of output csv files for each case-control sample, in the form `paste0(name_prefix,seq_along(n_control),"_1x",n_control,".csv")`
 #' @param infile_pattern Name of trial dataset csv files. This is passed to the `pattern` argument of `dir()`
+#' @param subset_condition Expression used to `subset` the trial data before sampling
+#'
+#' @return A vector of file paths of the sampled data
 #'
 #' @export
 #'
-case_control_sampling_trials <- function(data_dir, n_control, numCores, name_prefix="cc_sample_", infile_pattern = "trial_"){
+case_control_sampling_trials <- function(data_dir, n_control, numCores, name_prefix="cc_sample_", infile_pattern = "trial_", subset_condition){
+
   trial_files <- dir(path=data_dir, pattern = infile_pattern, full.names = TRUE)
 
+  if(!missing(subset_condition)) subset_cond <- substitute(subset_condition)
 
+
+  # function that does the actual sampling
   case_util <- function(data, n_control=5){
     ### cases occurred at each period and follow-up visit
     casedatajk<-data[data$outcome==1, ]
@@ -589,8 +596,12 @@ case_control_sampling_trials <- function(data_dir, n_control, numCores, name_pre
     return(dataall)
   }
 
+  # function used in mclapply to read in a trial file and call sampling function
   trial_fun <- function(trial_file){
     d_period <- fread(input = trial_file)
+
+    if(exists("subset_cond")) d_period <- subset(d_period, eval(subset_cond))
+
     d <- split(d_period, d_period$followup_time)
 
     all_samples <- lapply(n_control, function(nc){
@@ -601,6 +612,7 @@ case_control_sampling_trials <- function(data_dir, n_control, numCores, name_pre
     rbindlist(all_samples, idcol = TRUE)
   }
 
+  # Start of the actual sampling
   trial_samples <- mclapply(trial_files, trial_fun, mc.cores = numCores, mc.preschedule = FALSE)
   trial_samples_bind <- rbindlist(trial_samples)
 
@@ -609,8 +621,9 @@ case_control_sampling_trials <- function(data_dir, n_control, numCores, name_pre
            split(trial_samples_bind, by = ".id", keep.by = FALSE),
            file.path(data_dir, paste0(name_prefix,seq_along(n_control),"_1x",n_control,".csv")),
            append=FALSE, row.names=FALSE)
-  }
 
+    return(file.path(data_dir, paste0(name_prefix,seq_along(n_control),"_1x",n_control,".csv")))
+  }
 }
 
 #' Data modelling Function
