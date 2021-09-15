@@ -201,72 +201,80 @@ weight_func <- function(sw_data, cov_switchn=NA, model_switchn=NA,
     )
   }
 
-  d = list(
-    list(sw_data[if(any(!is.na(eligible_wts_0)))
-      (eligible0 == 1 & eligible_wts_0 == 1) else eligible0 == 1], regformd, class_switchd),
-    list(sw_data[if(any(!is.na(eligible_wts_0)))
-      (eligible0 == 1 & eligible_wts_0 == 1) else eligible0 == 1], regformn, class_switchn),
-    list(sw_data[if(any(!is.na(eligible_wts_1)))
-      (eligible1 == 1 & eligible_wts_1 == 1) else eligible1 == 1], regformd, class_switchd),
-    list(sw_data[if(any(!is.na(eligible_wts_1)))
-      (eligible1 == 1 & eligible_wts_1 == 1) else eligible1 == 1], regformn, class_switchn)
-  )
+  # Fit the models for the weights in the four scenarios
 
-  if(numCores == 1) {
-    # cl <- makeCluster(numCores)
-    # m = parLapply(cl, d, weight_lr)
-    # stopCluster(cl)
-    m = lapply(d, weight_lr)
-  } else {
-    m = mclapply(d, weight_lr, mc.cores=numCores)
-  }
-
+  # ------------------- eligible0 == 1 --------------------
+  # --------------- denominator ------------------
   print("P(treatment=1 | treatment=0) for denominator")
-  model1 = m[[1]]
+
+  model1 <- weight_lr(list(sw_data[if(any(!is.na(eligible_wts_0)))
+    (eligible0 == 1 & eligible_wts_0 == 1) else eligible0 == 1], regformd, class_switchd))
+
   print(summary(model1))
   switch_d0 = data.table(p0_d = model1$fitted.values,
                          eligible0 = unlist(model1$data$eligible0),
                          id = model1$data[, id],
                          period = model1$data[, period])
+  rm(model1)
 
   # -------------- numerator --------------------
+
   print("P(treatment=1 | treatment=0) for numerator")
 
-  model2 = m[[2]]
+  model2 <- weight_lr(list(sw_data[if(any(!is.na(eligible_wts_0)))
+    (eligible0 == 1 & eligible_wts_0 == 1) else eligible0 == 1], regformn, class_switchn))
+
   print(summary(model2))
   switch_n0 = data.table(p0_n = model2$fitted.values,
                          eligible0 = unlist(model2$data$eligible0),
                          id = model2$data[, id],
                          period = model2$data[, period])
+
+  rm(model2)
+
   # ------------------- eligible1 == 1 --------------------
   # --------------- denominator ------------------
   print("P(treatment=1 | treatment=1) for denominator")
-  model3 = m[[3]]
+  model3 <- weight_lr( list(sw_data[if(any(!is.na(eligible_wts_1)))
+    (eligible1 == 1 & eligible_wts_1 == 1) else eligible1 == 1], regformd, class_switchd))
+
   print(summary(model3))
   switch_d1 = data.table(p1_d = model3$fitted.values,
                          eligible1 = unlist(model3$data$eligible1),
                          id = model3$data[, id],
                          period = model3$data[, period])
+
+  rm(model3)
+
   # -------------------- numerator ---------------------------
   print("P(treatment=1 | treatment=1) for numerator")
-  model4 = m[[4]]
+  model4 <- weight_lr(list(sw_data[if(any(!is.na(eligible_wts_1)))
+    (eligible1 == 1 & eligible_wts_1 == 1) else eligible1 == 1], regformn, class_switchn))
+
   print(summary(model4))
   switch_n1 = data.table(p1_n = model4$fitted.values,
                          eligible1 = unlist(model4$data$eligible1),
                          id = model4$data[, id],
                          period = model4$data[, period])
 
+  rm(model4)
+
+
+  # -------------- Combine results --------------------
+
   switch_0 = switch_d0[switch_n0, on = list(id=id, period=period,
                                          eligible0=eligible0)]
   switch_1 = switch_d1[switch_n1, on = list(id=id, period=period,
                                          eligible1=eligible1)]
+
+  rm(switch_d0, switch_d1, switch_n0, switch_n1)
 
   new_data = Reduce(function(x,y) merge(x, y,
                                         by = c("id", "period"),
                                         all = TRUE),
                     list(sw_data, switch_1, switch_0))
 
-  rm(switch_d0, switch_d1, switch_n0, switch_n1, switch_1, switch_0)
+  rm(switch_1, switch_0)
 
   new_data[, eligible0.y := NULL]
   new_data[, eligible1.y := NULL]
