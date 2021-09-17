@@ -55,7 +55,8 @@ data_preparation(
   n_control = 5,
   data_dir = "~/rds/hpc-work/",
   numCores = NA,
-  parallel_expansion = TRUE
+  parallel_expansion = TRUE,
+  parallel_chunk_size = 500
 )
 }
 \arguments{
@@ -159,7 +160,9 @@ data_preparation(
 
 \item{numCores}{Number of cores for parallel programming (default value is maximum cores and parallel programming)}
 
-\item{parallel_expansion}{Do the expansion in chunks (and in parallel if numCores > 1)
+\item{parallel_expansion}{Do the expansion in chunks (and in parallel if numCores > 1)}
+
+\item{parallel_chunk_size}{How many patients to process in each chunk (default 500)?
 data_preparation()}
 }
 \description{

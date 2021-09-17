@@ -26,6 +26,9 @@ case_control_sampling_trials(
 
 \item{subset_condition}{Expression used to \code{subset} the trial data before sampling}
 }
+\value{
+A vector of file paths of the sampled data
+}
 \description{
 Case-control sampling from extended data in separate trial csvs
 }
