@@ -320,13 +320,14 @@ expand <- function(sw_data,
 #' @param lag_p_nosw when 1 this will set the first weight to be 1 and use p_nosw_d and p_nosw_n at followup-time (t-1) for calculating the weights at followup-time t - can be set to 0 which will increase the maximum and variance of weights (Defaults to 1)
 #' @param keeplist A list contains names of variables used in final model
 #' @param data_dir Direction to save data
+#' @param parallel_chunk_size Number of patients in the chunk
 #' @import data.table
 
 expand_switch <- function(id_num, data_address,
                           outcomeCov_var, where_var,
                           use_censor, maxperiod, minperiod,
-                          lag_p_nosw, keeplist, data_dir){
-  d = data_address[bigmemory::mwhich(data_address, c("id","id"), c(id_num,id_num+500), c('ge','lt'),op='AND'),] # the chunk size (idnum+100)  matches to data_extension_parallel(): j = seq(1, max_id, 100)
+                          lag_p_nosw, keeplist, data_dir, parallel_chunk_size){
+  d = data_address[bigmemory::mwhich(data_address, c("id","id"), c(id_num,id_num+parallel_chunk_size), c('ge','lt'),op='AND'),]
   if(is.null(nrow(d))){
     sw_data = as.data.table(t(d))
   }else{

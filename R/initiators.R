@@ -185,6 +185,7 @@ initiators <- function(data_path, id="id", period="period",
 #' @param data_dir Direction to save data
 #' @param numCores Number of cores for parallel programming (default value is maximum cores and parallel programming)
 #' @param parallel_expansion Do the expansion in chunks (and in parallel if numCores > 1)
+#' @param parallel_chunk_size How many patients to process in each chunk (default 500)?
 #' data_preparation()
 #' @export
 
@@ -212,7 +213,8 @@ data_preparation <- function(data_path, id="id", period="period",
                              case_control=0, n_control=5,
                              data_dir="~/rds/hpc-work/",
                              numCores=NA,
-                             parallel_expansion = TRUE){
+                             parallel_expansion = TRUE,
+                             parallel_chunk_size = 500){
   if(is.na(model_var)){
     if(use_censor == 0){
       model_var = c("dose", "dose2")
@@ -387,7 +389,7 @@ data_preparation <- function(data_path, id="id", period="period",
         })
         data_extension_parallel(data, keeplist, outcomeCov_var,
                                 first_period, last_period, use_censor, lag_p_nosw,
-                                where_var, data_dir, numCores)
+                                where_var, data_dir, numCores, parallel_chunk_size)
       }
     )
   }else{
@@ -400,7 +402,7 @@ data_preparation <- function(data_path, id="id", period="period",
                                          first_period, last_period,
                                          use_censor, lag_p_nosw,
                                          where_var, data_dir,
-                                         numCores)
+                                         numCores, parallel_chunk_size)
   }
 
 
